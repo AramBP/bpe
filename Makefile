@@ -1,6 +1,6 @@
 CXX = g++
 CXXFLAGS = -Wall -std=c++17 -Iinclude
-TARGET = bin/tokenizer 
+TARGET = bin/bpe
 SRC = src/main.cpp
 
 all: $(TARGET)
