@@ -1,0 +1,1 @@
+In a heap T, for every node v other than the root, the key associated with v is greater than or equal to the key associated with v's parent.
