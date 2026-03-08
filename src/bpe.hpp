@@ -1,15 +1,24 @@
 #include <vector>
 #include <string>
 #include <pair>
-#include <unordered_map>
+#include <map>
+
+using std::map;
+using std::string;
+using std::vector;
+using std::pair;
+
+using byte_t = unsigned char;
+using tokenId_t = int;
 
 class BPE {
 private:
-	std::unordered_map<std::string, int> vocab; 
-	std::vector<std::pair<std::string, std::string>> mergeSequence;
+	map<tokenId_t, byte_t> vocab; // Maps a token id to a utf-8 byte
+	vector<pair<tokenId_t, tokenId_t>> mergeSequence;
+	void bpe_train(string text, int nMerges);
+
 public:
 	BPE();
-	void bpe_train(std::string text, int nMerges);
-   	std::string decode(std::vector<int> tokenIds);
-	std::vector<int> encode(std::string text); 	
-}
+   	string decode(vector<tokenId_t> tokens);
+	vector<tokenId_t> encode(string text);
+};
