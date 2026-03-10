@@ -1,4 +1,4 @@
-#include "bpe.hpp"
+#include "bpe.h"
 #include "byte_pair.h"
 
 #include <queue>
