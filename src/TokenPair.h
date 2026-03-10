@@ -30,5 +30,5 @@ struct TokenPairHash {
 };
 
 struct CompareTokenPair {
-	bool operator()(const TokenPair& bp1, const TokenPair& bp2);
+	bool operator()(const TokenPair& bp1, const TokenPair& bp2) const;
 };

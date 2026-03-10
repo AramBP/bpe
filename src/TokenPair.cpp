@@ -28,6 +28,6 @@ std::size_t TokenPairHash::operator()(const TokenPair& bp) const {
 	return h1^(h2 << 1);
 }
 
-bool CompareTokenPair::operator()(const TokenPair& bp1, const TokenPair& bp2) {
+bool CompareTokenPair::operator()(const TokenPair& bp1, const TokenPair& bp2) const {
 	return bp1.getCount() < bp2.getCount();
 }
