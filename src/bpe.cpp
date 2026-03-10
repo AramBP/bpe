@@ -1,19 +1,22 @@
 #include "bpe.hpp"
+#include "byte_pair.h"
+
+#include <queue>
+#include <unordered_set>
+#include <list>
 
 namespace {
-	map<pair<const tokenId_t, const tokenId_t>, int> countPairs (vector<const tokenId_t>& tokens) {
-		map<pair<const tokenId_t, const tokenId_t>, int> counts;
-		vector<const tokenId_t>::iterator i, j;
-
-		for (i = tokens.begin(); i != tokens.end() - 1; ++i) {
-			j = i + 1;
-			pair<const tokenId_t, const tokenId_t> tokenPair(*i, *j);
-
-			if (auto search = consts.find(tokenPair); search != counts.end())
-				search->second++;
-			else
-				counts.insert({tokenPair, 1});
-		}	
+	std::unordered_set<BytePair, BytePairHash> countPairs (const std::list<byte_t>& l) {
+		std::unordered_set<BytePair, BytePairHash> counts;
+		for (auto it; it != std::prev(l.end()); ++it) {
+			BytePair pair (it, std::next(it));
+			if (auto search = ret.find(pair); search != ret.end()) {
+				search->addPosition(it, std::next(it));
+			} else {
+				ret.insert(pair);
+			}
+		}
+		return ret;
 	}
 }
 
