@@ -24,11 +24,7 @@ Tokenizer::Tokenizer() {
 }
 
 void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
-	std::list<tokenId_t> tokens;
-	for (unsigned char c : text) {
-		tokens.push_back(static_cast<int>(c));
-	}
-
+	std::list<tokenId_t> tokens = tokenize(text);
 	std::unordered_set<TokenPair, TokenPairHash> tokenPairs (countPairs(tokens));
 	std::set<TokenPair, CompareTokenPair> h(tokenPairs.begin(), tokenPairs.end());
 	
@@ -39,8 +35,8 @@ void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
 		const tokenId_t secondTokenId = top->getSecond();
 		mergeSequence.push_back(std::make_pair(firstTokenId, secondTokenId));
 
-		const tokenId_t nextTokenId = vocab.size() + 1;
-		const token_t nextToken = vocab[firstTokenId] + vocab[secondTokenId];
+		const tokenId_t nextTokenId = vocab.size();
+		const token_t nextToken = vocab.at(firstTokenId) + vocab.at(secondTokenId);
 		vocab.insert({nextTokenId, nextToken});
 
 		for (const auto& [first, second] : top->getPositions()) {
@@ -79,4 +75,36 @@ void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
 		h.erase(top);
 		nMerges--;
 	}
+}
+
+std::list<tokenId_t> Tokenizer::tokenize(const std::string& text) const {
+	std::list<tokenId_t> tokens;
+	for (unsigned char c : text) {
+		tokens.push_back(static_cast<int>(c));
+	}
+	return tokens;
+}
+
+std::string Tokenizer::decode(const std::vector<tokenId_t>& tokens) const {
+	std::string res = "";
+	for (const tokenId_t& token : tokens) {
+		res += vocab.at(token);
+	}
+	return res;
+}
+
+std::vector<tokenId_t> Tokenizer::encode(const std::string& text) const {
+	std::vector<tokenId_t> ret;
+	const std::list<tokenId_t> tokens = tokenize(text);
+	for (listPos_t it = tokens.begin(); it != std::prev(tokens.end()); ++it) {
+		listPos_t nextIt = std::next(it);
+		std::pair<tokenId_t, tokenId_t> tokenPair = std::make_pair(*it, *nextIt);
+		if (auto search = std::find(mergeSequence.begin(), mergeSequence.end(), tokenPair); search != mergeSequence.end()) {
+			ret.push_back(256 + std::distance(mergeSequence.begin(), search));
+		} else {
+			ret.push_back(*it);
+			ret.push_back(*nextIt);
+		}
+	}
+	return ret;
 }

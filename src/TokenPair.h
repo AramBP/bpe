@@ -1,7 +1,6 @@
 /* This class stores a list of pointers to pairs that contain the same characters */
 #pragma once
 #include "pch.h"
-#include "types.h"
 
 class TokenPair {
 private:

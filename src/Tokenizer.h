@@ -1,14 +1,14 @@
 #pragma once
 #include "pch.h"
-#include "types.h"
 
 class Tokenizer {
 private:
 	std::map<tokenId_t, token_t> vocab; // Maps a token id to a token
 	std::vector<std::pair<tokenId_t, tokenId_t>> mergeSequence;
-	void bpeTrain(const std::string& text, int nMerges);
+	std::list<tokenId_t> tokenize(const std::string& text) const;
 public:
 	Tokenizer();
-   	std::string decode(std::vector<tokenId_t> tokens);
-	std::vector<tokenId_t> encode(std::string text);
+	void bpeTrain(const std::string& text, int nMerges);
+   	std::string decode(const std::vector<tokenId_t>& tokens) const;
+	std::vector<tokenId_t> encode(const std::string& text) const;
 };
