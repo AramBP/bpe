@@ -1,8 +1,6 @@
 #pragma once
 #include "pch.h"
-
-using token_t = int;
-using tokenId_t = int;
+#include "types.h"
 
 class Tokenizer {
 private:

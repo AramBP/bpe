@@ -3,7 +3,7 @@
 
 namespace {
 	/* Helper function used in bpeTrain */
-	std::unordered_set<TokenPair, TokenPairHash> countPairs (const std::list<token_t>& l) {
+	std::unordered_set<TokenPair, TokenPairHash> countPairs (const std::list<tokenId_t>& l) {
 		std::unordered_set<TokenPair, TokenPairHash> counts;
 		for (auto it = l.begin(); it != std::prev(l.end()); ++it) {
 			TokenPair pair (it, std::next(it));
@@ -19,26 +19,29 @@ namespace {
 
 Tokenizer::Tokenizer() {
 	for (int i = 0; i < 256; ++i) {
-		vocab.insert({i, i});
+		vocab.insert({i, std::string(1, static_cast<unsigned char>(i))});
 	}
 }
 
 void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
-	std::list<token_t> tokens;
-	std::transform(text.begin(), text.end(), std::back_inserter(tokens), [](char c) { return static_cast<int>(c); });
+	std::list<tokenId_t> tokens;
+	for (unsigned char c : text) {
+		tokens.push_back(static_cast<int>(c));
+	}
+
 	std::unordered_set<TokenPair, TokenPairHash> tokenPairs (countPairs(tokens));
 	std::set<TokenPair, CompareTokenPair> h(tokenPairs.begin(), tokenPairs.end());
 	
 	while (nMerges != 0) {
 		const auto top = h.begin();
 
-		const token_t firstToken = top->getFirst();
-		const token_t secondToken = top->getSecond();
-		mergeSequence.push_back(std::make_pair(firstToken, secondToken));
+		const tokenId_t firstTokenId = top->getFirst();
+		const tokenId_t secondTokenId = top->getSecond();
+		mergeSequence.push_back(std::make_pair(firstTokenId, secondTokenId));
 
-		const tokenId_t nextTokenID = vocab.size() + 1;
-		const token_t nextToken = vocab[firstToken] + vocab[secondToken];
-		vocab.insert({nextTokenID, nextToken});
+		const tokenId_t nextTokenId = vocab.size() + 1;
+		const token_t nextToken = vocab[firstTokenId] + vocab[secondTokenId];
+		vocab.insert({nextTokenId, nextToken});
 
 		for (const auto& [first, second] : top->getPositions()) {
 			// Remove the positions from the heap
@@ -52,7 +55,7 @@ void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
 			}
 
 			// Update the list of tokens
-			tokens.insert(first, nextTokenID);
+			tokens.insert(first, nextTokenId);
 			listPos_t tokenPos = std::prev(first);
 
 			// Update the heap
