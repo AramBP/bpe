@@ -2,6 +2,7 @@
 #include "TokenPair.h"
 
 namespace {
+	/* Helper function used in bpeTrain */
 	std::unordered_set<TokenPair, TokenPairHash> countPairs (const std::list<token_t>& l) {
 		std::unordered_set<TokenPair, TokenPairHash> counts;
 		for (auto it = l.begin(); it != std::prev(l.end()); ++it) {
@@ -15,56 +16,64 @@ namespace {
 		return counts;
 	}
 }
-/*
-void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
-	std::list<token_t> bytes(text.begin(), text.end());
-	std::unordered_set<TokenPair, TokenPairHash> bytePairs (countPairs(bytes));
-	std::set<TokenPair, CompareTokenPair> h(bytePairs.begin(), bytePairs.end());
-	
-	for (int i = 0; i != nMerges; ++i) {
-		const auto& pos = *(h.begin());
 
-		tokenId_t nextToken = 256 + i;
-		mergeSequence.push_back(std::make_pair())
-
-		for (const auto& [first, second] : pos) {
-			// Remove the positions from the heap
-			if (first != bytes.begin()) {
-				TokenPair pair (std::prev(first), first);
-				h.erase(pair);
-			}
-			if (second != bytes.end()) {
-				TokenPair pair (second, std::next(second));
-				h.erase(pair);
-			}
-
-			// Perform the merge
-			*(first) = *(first) + *(second);
-			std::next(first) = std::next(second);
-			std::prev(std::next(second)) = first;
-
-			// Add the new tokens to the string
-			if (first != bytes.begin()) {
-				TokenPair pair (std::prev(first), first);
-				if (auto search = h.find(pair); search != h.end())
-					search->addPosition(std::prev(first), first);
-				else
-					h.insert(pair);
-			}
-			if (second != bytes.end()) {
-				TokenPair pair (second, std::next(second));
-				if (auto search = h.find(pair); search != h.end())
-					search->addPosition(second, std::next(second));
-				else
-					h.insert(pair);
-			}
-		}
-		h.erase(pos);
-	}
-}
-*/
 Tokenizer::Tokenizer() {
 	for (int i = 0; i < 256; ++i) {
 		vocab.insert({i, i});
+	}
+}
+
+void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
+	std::list<token_t> tokens;
+	std::transform(text.begin(), text.end(), std::back_inserter(tokens), [](char c) { return static_cast<int>(c); });
+	std::unordered_set<TokenPair, TokenPairHash> tokenPairs (countPairs(tokens));
+	std::set<TokenPair, CompareTokenPair> h(tokenPairs.begin(), tokenPairs.end());
+	
+	while (nMerges != 0) {
+		const auto top = h.begin();
+
+		const token_t firstToken = top->getFirst();
+		const token_t secondToken = top->getSecond();
+		mergeSequence.push_back(std::make_pair(firstToken, secondToken));
+
+		const tokenId_t nextTokenID = vocab.size() + 1;
+		const token_t nextToken = vocab[firstToken] + vocab[secondToken];
+		vocab.insert({nextTokenID, nextToken});
+
+		for (const auto& [first, second] : top->getPositions()) {
+			// Remove the positions from the heap
+			if (first != tokens.begin()) {
+				TokenPair pair (std::prev(first), first);
+				h.erase(pair);
+			}
+			if (second != tokens.end()) {
+				TokenPair pair (second, std::next(second));
+				h.erase(pair);
+			}
+
+			// Update the list of tokens
+			tokens.insert(first, nextTokenID);
+			listPos_t tokenPos = std::prev(first);
+
+			// Update the heap
+			if (tokenPos != tokens.begin()) {
+				TokenPair pair (std::prev(tokenPos), tokenPos);
+				if (auto search = h.find(pair); search != h.end())
+					search->addPosition(std::prev(tokenPos), tokenPos);
+				else
+					h.insert(pair);
+			}
+			if (second != tokens.end()) {
+				TokenPair pair (tokenPos, std::next(second));
+				if (auto search = h.find(pair); search != h.end())
+					search->addPosition(tokenPos, std::next(second));
+				else
+					h.insert(pair);
+			}
+			// Delete merged tokens
+			tokens.erase(first, second);
+		}
+		h.erase(top);
+		nMerges--;
 	}
 }
