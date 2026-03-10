@@ -1,2 +1,3 @@
 bin/
-src/pch.h.ghc
+*.ghc
+src/*.ghc
