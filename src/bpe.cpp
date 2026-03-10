@@ -1,5 +1,5 @@
 #include "bpe.h"
-#include "byte_pair.h"
+#include "BytePair.h"
 
 #include <queue>
 #include <unordered_set>
@@ -8,19 +8,19 @@
 namespace {
 	std::unordered_set<BytePair, BytePairHash> countPairs (const std::list<byte_t>& l) {
 		std::unordered_set<BytePair, BytePairHash> counts;
-		for (auto it; it != std::prev(l.end()); ++it) {
+		for (auto it = l.begin(); it != std::prev(l.end()); ++it) {
 			BytePair pair (it, std::next(it));
-			if (auto search = ret.find(pair); search != ret.end()) {
+			if (auto search = counts.find(pair); search != counts.end()) {
 				search->addPosition(it, std::next(it));
 			} else {
-				ret.insert(pair);
+				counts.insert(pair);
 			}
 		}
-		return ret;
+		return counts;
 	}
 }
 
-BPE::bpe_train(string text, int nMerges) {
+void BPE::bpe_train(const std::string& text, int nMerges) {
 	
 }
 
