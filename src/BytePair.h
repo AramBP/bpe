@@ -1,4 +1,5 @@
 /* This class stores a list of pointers to pairs that contain the same characters */
+#pragma once
 #include "pch.h"
 
 using byte_t = unsigned char;

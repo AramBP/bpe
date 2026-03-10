@@ -1,3 +1,4 @@
+#pragma once
 #include "pch.h"
 
 using byte_t = unsigned char;
