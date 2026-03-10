@@ -7,6 +7,7 @@ BytePair::BytePair(listPos_t x, listPos_t y) : count{1}, first {*x}, second {*y}
 const byte_t BytePair::getFirst() const { return first; }
 const byte_t BytePair::getSecond() const { return second; }
 const int BytePair::getCount() const { return count; }
+const std::vector<std::pair<listPos_t, listPos_t>> BytePair::getPositions() const { return positions; }
 
 void BytePair::addPosition(listPos_t x, listPos_t y) const {
 	positions.push_back(std::make_pair(x, y));

@@ -4,6 +4,8 @@
 #include <queue>
 #include <unordered_set>
 #include <list>
+#include <vector>
+#include <utility>
 
 namespace {
 	std::unordered_set<BytePair, BytePairHash> countPairs (const std::list<byte_t>& l) {
@@ -21,7 +23,13 @@ namespace {
 }
 
 void BPE::bpe_train(const std::string& text, int nMerges) {
+	std::list<byte_t> bytes(text.begin(), text.end());
+	std::unordered_set<BytePair, BytePairHash> bytePairs (countPairs(bytes));
+	std::priority_queue<BytePair, std::vector<BytePair>, CompareBytePair> q(bps.begin(), bps.end());
 	
+	for (int i = 0; i != nMerges; ++i) {
+			
+	}
 }
 
 BPE::BPE() {
@@ -29,5 +37,3 @@ BPE::BPE() {
 		vocab.insert({i, static_cast<byte_t>(i)});
 	}
 }
-
-

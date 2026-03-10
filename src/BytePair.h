@@ -19,6 +19,7 @@ public:
 	const byte_t getFirst() const;
 	const byte_t getSecond() const;
 	const int getCount() const;
+	const std::vector<std::pair<listPos_t, listPos_t>> getPositions() const;
 
 	void addPosition(listPos_t x, listPos_t y) const;
 
