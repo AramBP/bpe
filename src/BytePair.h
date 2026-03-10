@@ -1,9 +1,5 @@
 /* This class stores a list of pointers to pairs that contain the same characters */
-#include <string>
-#include <vector>
-#include <utility>
-#include <iostream>
-#include <list>
+#include "pch.h"
 
 using byte_t = unsigned char;
 using listPos_t = std::list<byte_t>::const_iterator; 
