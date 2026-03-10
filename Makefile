@@ -4,7 +4,7 @@ TARGET = bin/bpe
 PCH_SRC = src/pch.h
 PCH_OUT = src/pch.h.gch
 
-SRC = src/main.cpp src/BytePair.cpp src/Tokenizer.cpp
+SRC = src/main.cpp src/TokenPair.cpp src/Tokenizer.cpp
 OBJS = $(SRC:.cpp = .o)
 
 all: $(TARGET)
