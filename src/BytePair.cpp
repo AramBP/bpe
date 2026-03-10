@@ -1,6 +1,6 @@
 #include "BytePair.h"
 
-BytePair::BytePair(listPos_t x, listPos_t y) : first {*y}, second {*x}, count {1} {
+BytePair::BytePair(listPos_t x, listPos_t y) : count{1}, first {*x}, second {*y} {
 	positions.push_back(std::make_pair(x, y));
 }
 
@@ -17,7 +17,7 @@ void BytePair::print() const {
 	std::cout << "(" << first << ", " << second << ") : " << count << std::endl;
 }
 
-bool operator==(const BytePair& other) const {
+bool BytePair::operator==(const BytePair& other) const {
 	return (first == other.getFirst()) && (second == other.getSecond());
 }
 
