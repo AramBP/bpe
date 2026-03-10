@@ -15,8 +15,7 @@ class BPE {
 private:
 	map<tokenId_t, byte_t> vocab; // Maps a token id to a utf-8 byte
 	vector<pair<tokenId_t, tokenId_t>> mergeSequence;
-	void bpe_train(string text, int nMerges);
-
+	void bpe_train(const string& text, int nMerges);
 public:
 	BPE();
    	string decode(vector<tokenId_t> tokens);

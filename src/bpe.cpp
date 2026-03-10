@@ -1,13 +1,13 @@
 #include "bpe.hpp"
 
 namespace {
-	map<pair<tokenId_t, tokenId_t>, int> countPairs (string& word) {
-		map<pair<tokenId_t, tokenId_t>, int> counts;
-		string::iterator i, j;	
+	map<pair<const tokenId_t, const tokenId_t>, int> countPairs (vector<const tokenId_t>& tokens) {
+		map<pair<const tokenId_t, const tokenId_t>, int> counts;
+		vector<const tokenId_t>::iterator i, j;
 
-		for (i = word.begin(); i != word.end() - 1; ++i) {
+		for (i = tokens.begin(); i != tokens.end() - 1; ++i) {
 			j = i + 1;
-			pair<const tokenId_t, const tokenId_t> tokenPair(static_cast<const tokenId_t> (*i), static_cast<const tokenId_t> (*j)>;
+			pair<const tokenId_t, const tokenId_t> tokenPair(*i, *j);
 
 			if (auto search = consts.find(tokenPair); search != counts.end())
 				search->second++;
