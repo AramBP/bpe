@@ -1,21 +1,7 @@
 #include "Tokenizer.h"
 #include "TokenPair.h"
-
-namespace {
-	/* Helper function used in bpeTrain */
-	std::unordered_set<TokenPair, TokenPairHash> countPairs (const std::list<tokenId_t>& l) {
-		std::unordered_set<TokenPair, TokenPairHash> counts;
-		for (auto it = l.begin(); it != std::prev(l.end()); ++it) {
-			TokenPair pair (it, std::next(it));
-			if (auto search = counts.find(pair); search != counts.end()) {
-				search->addPosition(it, std::next(it));
-			} else {
-				counts.insert(pair);
-			}
-		}
-		return counts;
-	}
-}
+#include "pch.h"
+#include <iterator>
 
 Tokenizer::Tokenizer() {
 	for (int i = 0; i < 256; ++i) {
@@ -25,54 +11,41 @@ Tokenizer::Tokenizer() {
 
 void Tokenizer::bpeTrain(const std::string& text, int nMerges) {
 	std::list<tokenId_t> tokens = tokenize(text);
-	std::unordered_set<TokenPair, TokenPairHash> tokenPairs (countPairs(tokens));
-	std::set<TokenPair, CompareTokenPair> h(tokenPairs.begin(), tokenPairs.end());
-	
+	TokenPairHeap heap (tokens);
 	while (nMerges != 0) {
-		const auto top = h.begin();
-
-		const tokenId_t firstTokenId = top->getFirst();
-		const tokenId_t secondTokenId = top->getSecond();
+		TokenPair top = heap.top();
+		tokenId_t firstTokenId = top.getFirst();
+		tokenId_t secondTokenId = top.getSecond();
 		mergeSequence.push_back(std::make_pair(firstTokenId, secondTokenId));
 
-		const tokenId_t nextTokenId = vocab.size();
-		const token_t nextToken = vocab.at(firstTokenId) + vocab.at(secondTokenId);
+		tokenId_t nextTokenId = vocab.size();
+		token_t nextToken = vocab.at(firstTokenId) + vocab.at(secondTokenId);
 		vocab.insert({nextTokenId, nextToken});
+		auto& pos = top.getPositions();
+		std::pair<listPos_t, listPos_t> deletedPrev;
+		std::pair<listPos_t, listPos_t> deletedNext;	
 
-		for (const auto& [first, second] : top->getPositions()) {
+		for (std::pair<listPos_t, listPos_t> p : pos) {
+			if (p == deletedPrev || p == deletedNext)
+				continue;
+			auto [first, second] = p;
 			// Remove the positions from the heap
-			if (first != tokens.begin()) {
-				TokenPair pair (std::prev(first), first);
-				h.erase(pair);
-			}
-			if (second != tokens.end()) {
-				TokenPair pair (second, std::next(second));
-				h.erase(pair);
-			}
-
+			if (first != tokens.begin())
+				deletedPrev = heap.removePosition(std::prev(first), first);	
+			if (second != std::prev(tokens.end())) 
+				deletedNext = heap.removePosition(second, std::next(second));
 			// Update the list of tokens
-			tokens.insert(first, nextTokenId);
-			listPos_t tokenPos = std::prev(first);
-
+			*first = nextTokenId;
+			std::next(first) = std::next(second);
+			std::prev(std::next(second)) = first;
+			tokens.erase(second);
 			// Update the heap
-			if (tokenPos != tokens.begin()) {
-				TokenPair pair (std::prev(tokenPos), tokenPos);
-				if (auto search = h.find(pair); search != h.end())
-					search->addPosition(std::prev(tokenPos), tokenPos);
-				else
-					h.insert(pair);
-			}
-			if (second != tokens.end()) {
-				TokenPair pair (tokenPos, std::next(second));
-				if (auto search = h.find(pair); search != h.end())
-					search->addPosition(tokenPos, std::next(second));
-				else
-					h.insert(pair);
-			}
-			// Delete merged tokens
-			tokens.erase(first, second);
+			if (first != tokens.begin()) 
+				heap.addPosition(std::prev(first), first);
+			if (first != std::prev(tokens.end()))
+				heap.addPosition(first, std::next(first));
 		}
-		h.erase(top);
+		heap.pop();
 		nMerges--;
 	}
 }
@@ -94,17 +67,24 @@ std::string Tokenizer::decode(const std::vector<tokenId_t>& tokens) const {
 }
 
 std::vector<tokenId_t> Tokenizer::encode(const std::string& text) const {
-	std::vector<tokenId_t> ret;
-	const std::list<tokenId_t> tokens = tokenize(text);
-	for (listPos_t it = tokens.begin(); it != std::prev(tokens.end()); ++it) {
-		listPos_t nextIt = std::next(it);
-		std::pair<tokenId_t, tokenId_t> tokenPair = std::make_pair(*it, *nextIt);
-		if (auto search = std::find(mergeSequence.begin(), mergeSequence.end(), tokenPair); search != mergeSequence.end()) {
-			ret.push_back(256 + std::distance(mergeSequence.begin(), search));
+	std::list<tokenId_t> tokens = tokenize(text);
+	for (listPos_t it = tokens.begin(); it != std::prev(tokens.end());) {
+		listPos_t first = it;
+		listPos_t second = std::next(it);
+		if (auto search = std::find(mergeSequence.begin(), mergeSequence.end(), std::make_pair(*first,*second)); search != mergeSequence.end()) {
+			tokens.insert(first, 256 + std::distance(mergeSequence.begin(), search));
+			tokens.erase(first);
+			tokens.erase(second);
+			it = tokens.begin();
 		} else {
-			ret.push_back(*it);
-			ret.push_back(*nextIt);
+			++it;
 		}
+ 	}
+	return std::vector<tokenId_t>(tokens.begin(), tokens.end());
+}
+
+void Tokenizer::printMergeSequence() const {
+	for (const auto& [first, second] : mergeSequence) {
+		std::cout << vocab.at(first) << " " << vocab.at(second) << std::endl;
 	}
-	return ret;
 }
