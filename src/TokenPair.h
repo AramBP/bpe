@@ -10,20 +10,33 @@ private:
 public:
 	TokenPair(listPos_t x, listPos_t y);
 	
-	const tokenId_t getFirst() const;
-	const tokenId_t getSecond() const;
-	const int getCount() const;
-	const std::vector<std::pair<listPos_t, listPos_t>> getPositions() const;
+	tokenId_t getFirst() const;
+	tokenId_t getSecond() const;
+	int getCount() const;
+	std::vector<std::pair<listPos_t, listPos_t>>& getPositions();
 
-	void addPosition(listPos_t x, listPos_t y) const;
+	void newPositions(listPos_t x, listPos_t y) const;
+	void deletePositions(listPos_t x, listPos_t y) const;
+	void print();
 
 	bool operator==(const TokenPair& other) const;
+	bool operator<(const TokenPair& rhs) const;
 };
 
 struct TokenPairHash {
 	std::size_t operator()(const TokenPair& bp) const;
 };
 
-struct CompareTokenPair {
-	bool operator()(const TokenPair& bp1, const TokenPair& bp2) const;
+class TokenPairHeap {
+private:
+	std::vector<TokenPair> heap;
+	void sort();
+public:
+	TokenPairHeap(std::list<tokenId_t>& tokens);
+	TokenPair top();
+	void pop();
+	void addPosition(listPos_t x, listPos_t y);
+	std::pair<listPos_t, listPos_t> removePosition(listPos_t x, listPos_t y);
+
+	void print();
 };
