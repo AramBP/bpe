@@ -11,4 +11,6 @@ public:
 	void bpeTrain(const std::string& text, int nMerges);
    	std::string decode(const std::vector<tokenId_t>& tokens) const;
 	std::vector<tokenId_t> encode(const std::string& text) const;
+
+	void printMergeSequence() const;
 };
