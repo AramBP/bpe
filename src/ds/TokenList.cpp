@@ -1,7 +1,6 @@
 #include "../../include/ds/TokenList.h"
 
-using namespace tokenizer;
-using namespace ds;
+using namespace tokenizer::ds;
 
 TokenList::TokenList() {
     header = new Node();
