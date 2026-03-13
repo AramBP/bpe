@@ -11,17 +11,18 @@ namespace tokenizer {
                 token_t token;
                 Node* next;
                 Node* prev;
-            };
+             };
             Node* header;
-            Node* tailer;
+            Node* trailer;
         public:
+            TokenList();
+            ~TokenList();
+            
             using listPos_t = Node*;
             bool empty() const;
-            const Node& front();
-            const Node& back();
+            listPos_t frontPos();
+            listPos_t backPos();
             void addBack(token_t elem);
-
-            void fromString(const string_t& s);
         };
     }
 }

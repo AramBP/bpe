@@ -1,9 +1,11 @@
 #ifndef __TOKENIZER__DS__TOKENPAIRQUEUE_H
 #define __TOKENIZER__DS__TOKENPAIRQUEUE_H
 
+#include "TokenList.h"
+
 #include <vector>
 
-#include "TokenList.h"
+
 
 namespace tokenizer {
     namespace ds {
