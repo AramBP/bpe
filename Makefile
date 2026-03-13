@@ -1,23 +1,18 @@
 CXX = g++
-CXXFLAGS = -Wall -std=c++17 -O2
+CXXFLAGS = -Wall -std=c++17 -Iinclude -O2
 TARGET = bin/bpe
-PCH_SRC = src/pch.h
-PCH_OUT = src/pch.h.gch
 
-SRC = src/main.cpp src/TokenPair.cpp src/Tokenizer.cpp
+SRC = src/main.cpp src/Tokenizer.cpp src/ds/TokenList.cpp src/ds/TokenPairQueue.cpp
 OBJS = $(SRC:.cpp = .o)
 
 all: $(TARGET)
 
-$(TARGET) : $(PCH_OUT) $(OBJS)
+$(TARGET) : $(OBJS)
+	@mkdir -p bin
 	$(CXX) $(CXXFLAGS) $(OBJS) -o $(TARGET)
 
-# Rule to compile the PCH
-$(PCH_OUT) : $(PCH_SRC)
-	$(CXX) $(CXXFLAGS) -x c++-header $(PCH_SRC) -o $(PCH_OUT)
-
-%.o: %.cpp $(PCH_OUT)
-	$(CXX) $(CXXFLAGS) -include $(PCH_SRC) -c $< -o $@
+%.o: %.cpp 
+	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJS) $(TARGET) $(PCH_OUT)
+	rm -f $(OBJS) $(TARGET)
