@@ -47,7 +47,6 @@ void TokenPairQueue::pairs(TokenList& tokens) {
     std::unordered_set<TokenPair, TokenPairHash> counts;
     listPos_t p = tokens.frontPos();
     while(p != tokens.backPos()) {
-        // Initialize pair
         TokenPair pair;
         initTokenPair(pair, p); 
         if(auto search = counts.find(pair); search != counts.end()) {

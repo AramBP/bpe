@@ -1,6 +1,10 @@
 #include "../include/Tokenizer.h"
 #include "../include/ds/TokenList.h"
 #include "../include/ds/TokenPairQueue.h"
+
+#include <algorithm>
+#include <iostream>
+#include <iterator>
 #include <utility>
 
 using namespace tokenizer;
@@ -20,7 +24,6 @@ void Tokenizer::bpeTrain(string_t text, int nMerges) {
     for (unsigned char c : text) {
         tokens.addBack(static_cast<int>(c));
     }
-    tokens.printList();
     queue.pairs(tokens);
     
     while (nMerges != 0) {
@@ -54,7 +57,42 @@ void Tokenizer::bpeTrain(string_t text, int nMerges) {
         }
         queue.pop();
         queue.sort();
-        tokens.printList();
         nMerges--;
     }
+}
+
+string_t Tokenizer::decode(std::vector<token_t> tokens) {
+    string_t s = "";
+    for (token_t tok : tokens) {
+        s += vocab.at(tok);
+    }
+    return s;
+}
+
+std::vector<token_t> Tokenizer::encode(string_t text) {
+    std::vector<token_t> tokens;
+    for (unsigned char c : text) {
+        tokens.push_back(static_cast<int>(c));
+    }
+    
+    for (auto it = tokens.begin(); it != std::prev(tokens.end());) {
+        token_t first = *it;
+        token_t second = *std::next(it);
+
+        if (auto search = std::find(mergeSequence.begin(), mergeSequence.end(), std::make_pair(first, second)); search != mergeSequence.end()) {
+            *it = 256 + std::distance(mergeSequence.begin(), search);
+            tokens.erase(std::next(it));
+            it = tokens.begin();
+        } else {
+            ++it;
+        }
+    }
+    return tokens;
+}
+
+void Tokenizer::printMergeSeq() const {
+    for (const auto& [first, second] : mergeSequence) {
+        std::cout << "(" << vocab.at(first) << ", " << vocab.at(second) << ") "; 
+    }
+    std::cout << std::endl;
 }

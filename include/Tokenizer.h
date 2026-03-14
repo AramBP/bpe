@@ -17,6 +17,8 @@ namespace tokenizer {
         void bpeTrain(string_t text, int nMerges);
         string_t decode(std::vector<token_t> tokens);
         std::vector<token_t> encode(string_t text);
+
+        void printMergeSeq() const;
     };
 }
 
