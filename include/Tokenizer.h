@@ -2,7 +2,6 @@
 #define __TOKENIZER_H
 
 #include "types.h"
-#include "BPE.h"
 
 #include <map>
 #include <vector>
@@ -13,7 +12,6 @@ namespace tokenizer {
     private:
         std::map<token_t, string_t> vocab;
         std::vector<std::pair<token_t, token_t>> mergeSequence;
-        BPE encoder;
     public:
         Tokenizer();
         void bpeTrain(string_t text, int nMerges);

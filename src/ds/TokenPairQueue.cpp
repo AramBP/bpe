@@ -2,10 +2,11 @@
 #include <algorithm>
 #include <cassert>
 #include <unordered_set>
+#include <iostream>
 
 using namespace tokenizer::ds;
 
-void initTokenPair(TokenPair& pair, listPos_t position) {
+void tokenizer::ds::initTokenPair(TokenPair& pair, listPos_t position) {
     pair.first = position->token;
     pair.second = position->next->token;
     pair.positions.push_back(position);
@@ -42,22 +43,24 @@ TokenPair TokenPairQueue::top() const {
     return *queue.begin();
 }
 
-void TokenPairQueue::pairs(TokenList tokens) {
+void TokenPairQueue::pairs(TokenList& tokens) {
     std::unordered_set<TokenPair, TokenPairHash> counts;
     listPos_t p = tokens.frontPos();
-    for(; p != tokens.backPos()->prev; ++p) {
+    while(p != tokens.backPos()) {
         // Initialize pair
         TokenPair pair;
         initTokenPair(pair, p); 
-        // Check if this pair already exist (but at a previous position in the list)
-        if (auto search = std::find(counts.begin(), counts.end(), pair); search != counts.end()) {
+        if(auto search = counts.find(pair); search != counts.end()) {
             search->positions.push_back(p);
             search->count++;
         } else {
             counts.insert(pair);
         }
+        p = p->next;
     }
-    std::copy(counts.begin(), counts.end(), std::inserter(queue, queue.end()));
+    for (auto& entry: counts) {
+        queue.push_back(entry);
+    }
     sort();
 }
 
@@ -77,10 +80,17 @@ void TokenPairQueue::removePosition(listPos_t position) {
     initTokenPair(pair, position);
 
     auto search_pair = std::find(queue.begin(), queue.end(), pair);
-    assert(search_pair != queue.end() && "Pair position to delete not found in queue");
     auto search_pos = std::find(search_pair->positions.begin(), search_pair->positions.end(), position);
-    assert(search_pos != search_pair->positions.end() && "Position to delete not found in positions array");
-
     search_pair->positions.erase(search_pos);
     search_pair->count--;
+    if (search_pair->count == 0) {
+        queue.erase(search_pair);
+    }
+}
+
+void TokenPairQueue::printQueue() const {
+    for (const TokenPair& e : queue) {
+        std::cout << "(" << e.first << ", " << e.second << ")" << " : " << e.count << " ";
+    }
+    std::cout << std::endl;
 }

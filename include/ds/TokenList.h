@@ -23,6 +23,7 @@ namespace tokenizer {
             listPos_t frontPos();
             listPos_t backPos();
             void addBack(token_t elem);
+            void printList() const;
         };
     }
 }

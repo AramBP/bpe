@@ -33,9 +33,10 @@ namespace tokenizer {
             void pop();
             TokenPair top() const;
 
-            void pairs(TokenList tokens); // Empty the queue and fill it with TokenPairs from the TokenList
+            void pairs(TokenList& tokens); // Empty the queue and fill it with TokenPairs from the TokenList
             void addPosition(listPos_t position); 
             void removePosition(listPos_t position);
+            void printQueue() const;
         };
     }
 }
