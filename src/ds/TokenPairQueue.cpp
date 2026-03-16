@@ -57,6 +57,8 @@ void TokenPairQueue::pairs(TokenList& tokens) {
         }
         p = p->next;
     }
+
+    queue.clear();
     for (auto& entry: counts) {
         queue.push_back(entry);
     }
