@@ -6,6 +6,7 @@
 #include <map>
 #include <vector>
 #include <utility>
+#include <regex>
 
 namespace tokenizer {
     /** 
@@ -20,12 +21,15 @@ namespace tokenizer {
         // An ordered collection of which token pairs were merged during training.
         // Each pair in the vector represents a single BPE merge rule.
         std::vector<std::pair<token_t, token_t>> mergeSequence;
-    public:
-        // Initializes a basic tokenizer, starting with individual characters.
-        Tokenizer();
 
+        // Regex pattern for tokenization, performs initial splitting of the input string
+        std::regex regexSplitter;
+        
         // Learns sub-word units by iteratively merging the most frequent token pairs.
         void bpeTrain(string_t text, int nMerges);
+    public:
+        // Initializes a tokenizer using a training string, starting with individual characters.
+        Tokenizer(string_t text, int nMerges); 
 
         // Converts a sequence of token IDs back to a human readable string
         string_t decode(std::vector<token_t> tokens);

@@ -6,14 +6,17 @@
 #include <iostream>
 #include <iterator>
 #include <utility>
+#include <regex>
 
 using namespace tokenizer;
 using namespace tokenizer::ds;
 
-Tokenizer::Tokenizer() {
+Tokenizer::Tokenizer(string_t text, int nMerges) : regexSplitter(R"('s|'t|'re|'ve|'m|'ll|'d| ?[a-zA-Z]+| ?[0-9]+| ?[^\s\w]+|\s+(?!\S)|\s+)") {
     for (int i = 0; i < 256; ++i) {
         vocab.insert({i, string_t(1, static_cast<unsigned char>(i))});
     }
+
+    bpeTrain(text, nMerges);
 }
 
 void Tokenizer::bpeTrain(string_t text, int nMerges) {
@@ -21,8 +24,13 @@ void Tokenizer::bpeTrain(string_t text, int nMerges) {
     TokenPairQueue queue;
 
     // Initialize list as sequence of tokens of chars
-    for (unsigned char c : text) {
-        tokens.addBack(static_cast<int>(c));
+    std::sregex_iterator iter(text.begin(), text.end(), regexSplitter);
+    std::sregex_iterator end_iter;
+    while (iter != end_iter) {
+        for (unsigned char c : iter->str()) {
+            tokens.addBack(static_cast<int>(c));
+        }
+        ++iter;
     }
     queue.pairs(tokens);
     
@@ -40,10 +48,11 @@ void Tokenizer::bpeTrain(string_t text, int nMerges) {
             listPos_t second = p->next;
 
             // Remove positions from the heap
-            if (first != tokens.frontPos()) {
-                queue.removePosition(first->prev);   }
-            if (second != tokens.backPos()) {
-                queue.removePosition(second->next); }
+            if (first != tokens.frontPos())
+                queue.removePosition(first->prev);   
+            if (second != tokens.backPos())
+                queue.removePosition(second->next);
+
             // Update the TokenList
             first->token = nextTok;
             first->next = second->next;

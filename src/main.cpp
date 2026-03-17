@@ -5,15 +5,14 @@
 using namespace tokenizer;
 
 int main() {
-    Tokenizer tokenizer1;
-    Tokenizer tokenizer2;
     std::string text = "aaabdaaabac";
     std::string random_text = "7mK9pL2vR5nW1xZ8bQ4tY6cJ3fH0sM1gN9vK2rL5pW8xZ3bQ7tY4cJ6fH1sM0gN2vK9rL5pW8xZ3bQ7tY4cJ6fH1sM0gN2vK9r";
     
-    tokenizer1.bpeTrain(text, 3);
+    Tokenizer tokenizer1(text, 3); 
+    Tokenizer tokenizer2(random_text, 3);
+
     std::vector<token_t> encoded1 = tokenizer1.encode(text);
     std::string decoded1 = tokenizer1.decode(encoded1);
-    tokenizer2.bpeTrain(random_text, 3);
     std::vector<token_t> encoded2 = tokenizer2.encode(random_text);
     std::string decoded2 = tokenizer2.decode(encoded2);
 
