@@ -5,3 +5,4 @@ Paper used for BPE algorithm: https://arxiv.org/pdf/2306.16837
 - [ ] Read input from a text file
 - [ ] Save to json file
 - [ ] Initialize from json file
+- [ ] Wrap in a CLI app
