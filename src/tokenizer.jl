@@ -3,7 +3,7 @@
 """
 module Tokenizer
     export load_file, decode, encode, encode_file 
-    using Printf
+    using Printf, PrettyPrint
 
     const Token_t = UInt32::DataType
     const TokenPair = Tuple{Token_t, Token_t}
@@ -31,15 +31,22 @@ module Tokenizer
 
     function preprocess_tokens(tokens)
         new_tokens = Token_t[]
-        for token in tokens
-            # Beginning of sentence or sequence
-            if isuppercase(Char(token)) || token == token[1]
-                append!(new_tokens, [256, token])
+
+        if !isempty(tokens)
+            push!(new_tokens, 256)
+        end
+
+        for i in eachindex(tokens) 
+            token = tokens[i]
+            push!(new_tokens, token)
+
             # End of sentence or sequence, 46 is the ASCII code for "."
-            elseif token == 46 || token == token[end]
-                append!(new_tokens, [token, 257])
-            else
-                push!(new_tokens, token)
+            if token == 46 || i == length(tokens) 
+                push!(new_tokens, 257)
+
+                if i != length(tokens)
+                    push!(new_tokens, 256)
+                end
             end
         end
         return new_tokens
@@ -65,24 +72,46 @@ module Tokenizer
         return pairs
     end
 
+    function init_merge_seq(filename::String)
+        if !isfile(filename) || filesize(filename) == 0
+            return Dict{TokenPair, Int64}()
+        else
+            d = Dict{TokenPair, Int64}()
+            
+            n = div(filesize(filename), sizeof(Token_t) + sizeof(Token_t) + sizeof(Int64))
+            sizehint!(d, n)
+
+            open(filename, "r") do io
+                for _ in 1:n
+                    k1 = read(io, Token_t)
+                    k2 = read(io, Token_t)
+                    v = read(io, Int64)
+                    d[(k1, k2)] = v
+                end
+            end
+
+            return d
+        end
+    end
+
     """ 
         Train BPE using file "filename".
         Encoded byte pairs are stored in binary format in "pairs_file" 
         Max_it specifies the maximum amount of pairs to encode.
     """
-    function load_file(filename::String; max_it::Int64 = 10000, pairs_file = "pairs.bin")
+    function load_file(filename::String; max_it::Int64 = 10000, pairs_file = "pairs.bin", merge_file = "merge.bin")
         tokens = Token_t[] 
         for line in eachline(filename)
             if isempty(strip(line))
-                continue
+                continue 
             end
-            bytes = Int.(codeunits(line))
+            bytes = preprocess_tokens(Int.(codeunits(line)))
             append!(tokens, bytes)
-       end
-       bpe_train(preprocess_tokens(tokens), max_it, pairs_file)
+        end
+        bpe_train(tokens, max_it, pairs_file, merge_file)
     end
 
-    function encode(text::String, pairs::Vector{TokenPair})
+    function encode(text::String, pairs::Vector{TokenPair}, merge_seq::Dict{TokenPair, Int64})
         tokens = preprocess_tokens(Int.(codeunits(text)))
         
         while length(tokens) >= 2
@@ -91,9 +120,8 @@ module Tokenizer
 
             for i in 1:(length(tokens) - 1)
                 pair = (tokens[i], tokens[i+1])
-                rank = findfirst(==(pair), pairs)
-
-                if !isnothing(rank) && !is_byte(rank) && !is_special(rank) && rank < best_rank 
+                rank = get(merge_seq, pair, nothing) 
+                if !isnothing(rank) && rank < best_rank 
                     best_pair = pair
                     best_rank = rank
                 end
@@ -103,11 +131,11 @@ module Tokenizer
                 break
             end
 
-            new_tokens = Int[]
+            new_tokens = Token_t[]
             i = 1
             while i <= length(tokens)
                 if i < length(tokens) && (tokens[i], tokens[i+1]) == best_pair
-                    push!(new_tokens, best_rank - 1)
+                    push!(new_tokens, best_rank)
                     i += 2
                 else 
                     push!(new_tokens, tokens[i])
@@ -120,14 +148,16 @@ module Tokenizer
         return Token_t.(tokens)
     end
 
-    function encode(text::String, pairs_file)
+    function encode(text::String, pairs_file::String, merge_file::String)
         pairs = init_pairs(pairs_file) 
-        return encode(text, pairs)
+        merge_seq = init_merge_seq(merge_file)
+        return encode(text, pairs, merge_seq)
     end
 
-    function encode_file(input_file, output_file, pairs_file)
+    function encode_file(input_file::String, output_file::String, pairs_file::String, merge_file::String)
         pairs = init_pairs(pairs_file)
-
+        merge_seq = init_merge_seq(merge_file)
+    
         io = open(output_file, "w") 
         write(io, "")
         close(io)
@@ -136,7 +166,7 @@ module Tokenizer
                 if isempty(strip(line))
                     continue
                 end
-                write(io, encode(line, pairs))  
+                write(io, encode(line, pairs, merge_seq))  
             end
         end
     end
@@ -166,7 +196,7 @@ module Tokenizer
         return String(take!(io)) 
     end
 
-    function decode(tokens::Vector{Token_t}, pairs_file)
+    function decode(tokens::Vector{Token_t}, pairs_file::String)
         pairs = init_pairs(pairs_file)
         return decode(tokens, pairs)
     end
@@ -178,10 +208,11 @@ module Tokenizer
         After the algorithm is complete it stores the encoded pairs in pairs_file in binary
         format.
     """
-    function bpe_train(tokens::Vector{Token_t}, max_it, pairs_file)
+    function bpe_train(tokens::Vector{Token_t}, max_it, pairs_file, merge_file)
         tokens_in = tokens
         tokens_out = Token_t[]
         pairs =  init_pairs(pairs_file) 
+        merge_seq = init_merge_seq(merge_file)
 
         n = 0
         while n < max_it 
@@ -204,6 +235,7 @@ module Tokenizer
                 break
             end
             append!(pairs, [max_pair])
+            merge_seq[max_pair] = length(pairs) - 1 
 
             i = 1
             while i <= length(tokens_in)
@@ -217,13 +249,22 @@ module Tokenizer
             end
 
             tokens_in = tokens_out
-            tokens_out = []
+            tokens_out = Token_t[]
             n += 1
         end
 
         # save the pairs
         open(pairs_file, "w") do io
             write(io, pairs)
+        end
+
+        # save the merge seq
+        open(merge_file, "w") do io
+            for (k, v) in merge_seq 
+                write(io, k[1])
+                write(io, k[2])
+                write(io, v)
+            end
         end
     end
 end
