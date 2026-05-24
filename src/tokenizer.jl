@@ -137,11 +137,11 @@ module Tokenizer
     end
 
     function decode(tokens::Vector{Token_t}, pairs::Vector{TokenPair})
-        text = ""
+        io = IOBuffer() 
         for token in tokens
-            text = text * decode_token(token, pairs)
+            write(io, decode_token(token, pairs))
         end
-        return text
+        return String(take!(io)) 
     end
 
     function decode(tokens::Vector{Token_t}, pairs_file)
