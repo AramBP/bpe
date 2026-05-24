@@ -8,7 +8,11 @@ module Tokenizer
     const Token_t = UInt32::DataType
     const TokenPair = Tuple{Token_t, Token_t}
     
-    is_byte(token) = token < 256 
+    # <|bos|> = 256, indicates the beginning of a sentence/sequence
+    # <|eos|> = 257, indicates the end of sentence/sequence
+    const SPECIAL_TOKENS = ["<|bos|>", "<|eos|>"]
+    is_byte(token) = token < 256
+    is_special(token) = token in [256, 257]
 
     # visualize a sequence of tokens
     function render_tokens(tokens::Vector{Token_t})
@@ -23,6 +27,22 @@ module Tokenizer
                 Printf.@printf "[%u]" token
             end
         end
+    end
+
+    function preprocess_tokens(tokens)
+        new_tokens = Token_t[]
+        for token in tokens
+            # Beginning of sentence or sequence
+            if isuppercase(Char(token)) || token == token[1]
+                append!(new_tokens, [256, token])
+            # End of sentence or sequence, 46 is the ASCII code for "."
+            elseif token == 46 || token == token[end]
+                append!(new_tokens, [token, 257])
+            else
+                push!(new_tokens, token)
+            end
+        end
+        return new_tokens
     end
 
     function load_tokens(filename::String)
@@ -59,11 +79,11 @@ module Tokenizer
             bytes = Int.(codeunits(line))
             append!(tokens, bytes)
        end
-       bpe_train(tokens, max_it, pairs_file)
+       bpe_train(preprocess_tokens(tokens), max_it, pairs_file)
     end
 
     function encode(text::String, pairs::Vector{TokenPair})
-        tokens = Int.(codeunits(text))
+        tokens = preprocess_tokens(Int.(codeunits(text)))
         
         while length(tokens) >= 2
             best_rank = typemax(Int)
@@ -73,7 +93,7 @@ module Tokenizer
                 pair = (tokens[i], tokens[i+1])
                 rank = findfirst(==(pair), pairs)
 
-                if !isnothing(rank) && !is_byte(rank) && rank < best_rank 
+                if !isnothing(rank) && !is_byte(rank) && !is_special(rank) && rank < best_rank 
                     best_pair = pair
                     best_rank = rank
                 end
@@ -124,7 +144,9 @@ module Tokenizer
     function decode_token(token::Token_t, pairs::Vector{TokenPair})
         bytes = UInt8[]
         function aux(tok::Token_t)
-            if is_byte(tok)
+            if is_special(tok)
+                return
+            elseif is_byte(tok)
                 push!(bytes, tok)
             else
                 (left, right) = pairs[tok+1]
@@ -178,7 +200,7 @@ module Tokenizer
                 end
             end
             if max_freq < 2
-                Printf.@printf "BPE terminated after %d iterations." n
+                Printf.@printf "BPE terminated after %d iterations.\n" n
                 break
             end
             append!(pairs, [max_pair])
