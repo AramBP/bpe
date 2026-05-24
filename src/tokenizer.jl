@@ -8,23 +8,19 @@ module Tokenizer
     const Token_t = UInt32::DataType
     const TokenPair = Tuple{Token_t, Token_t}
     
-    # "<|bos|>" indicates the beginning of a sentence and is token 256
-    # "<|eos|>" indicates the end of a sentence and is token 257
-    const SPECIAL_TOKENS = ["<|bos|>", "<|eos|>"]
-    
     is_byte(token) = token < 256 
-    isspecial_token(token) = token in [256, 257] 
 
-    # adds the "<|bos|>" and "<|eos|>" tokens where necessery 
-    function add_special_tokens!(bytes::Vector{Int64}, start_of_sentence)
-        if start_of_sentence
-            pushfirst!(bytes, 256)
-        end
-
-        for i in 1:length(bytes) 
-            if bytes[i] == Int.(codeunits("."))[1]
-                insert!(bytes, i + 1, 257)
-                insert!(bytes, i + 2, 256)
+    # visualize a sequence of tokens
+    function render_tokens(tokens::Vector{Token_t})
+        for token in tokens
+            if is_byte(token)
+                Printf.@printf "%c" Char(token)
+            elseif token == 256
+                Printf.@printf "<|bos|>"
+            elseif token == 257
+                Printf.@printf "<|eos|>"
+            else
+                Printf.@printf "[%u]" token
             end
         end
     end
@@ -43,7 +39,7 @@ module Tokenizer
         else
             n = div(filesize(filename), sizeof(TokenPair))
             temp = Vector{TokenPair}(undef, n)
-            read!(filename, pairs)
+            read!(filename, temp)
             append!(pairs, temp)
         end
         return pairs
@@ -61,7 +57,6 @@ module Tokenizer
                 continue
             end
             bytes = Int.(codeunits(line))
-            add_special_tokens!(bytes, isuppercase(line[1]))
             append!(tokens, bytes)
        end
        bpe_train(tokens, max_it, pairs_file)
@@ -69,19 +64,39 @@ module Tokenizer
 
     function encode(text::String, pairs::Vector{TokenPair})
         tokens = Int.(codeunits(text))
-        add_special_tokens!(tokens, isuppercase(text[1]))
-        i = 1
-        while i <= length(tokens) - 1
-            pair = (tokens[i], tokens[i+1])
-            search = findfirst(==(pair), pairs)
-            if isnothing(search) || is_byte(search) || isspecial_token(search)
-                i += 1
-            else
-                tokens[i] = search - 1
-                deleteat!(tokens, i + 1)
-                i = 1
-            end 
+        
+        while length(tokens) >= 2
+            best_rank = typemax(Int)
+            best_pair = nothing
+
+            for i in 1:(length(tokens) - 1)
+                pair = (tokens[i], tokens[i+1])
+                rank = findfirst(==(pair), pairs)
+
+                if !isnothing(rank) && !is_byte(rank) && rank < best_rank 
+                    best_pair = pair
+                    best_rank = rank
+                end
+            end
+
+            if isnothing(best_pair)
+                break
+            end
+
+            new_tokens = Int[]
+            i = 1
+            while i <= length(tokens)
+                if i < length(tokens) && (tokens[i], tokens[i+1]) == best_pair
+                    push!(new_tokens, best_rank - 1)
+                    i += 2
+                else 
+                    push!(new_tokens, tokens[i])
+                    i += 1
+                end
+            end
+            tokens = new_tokens
         end
+            
         return Token_t.(tokens)
     end
 
@@ -109,9 +124,7 @@ module Tokenizer
     function decode_token(token::Token_t, pairs::Vector{TokenPair})
         bytes = UInt8[]
         function aux(tok::Token_t)
-            if isspecial_token(tok)
-                return
-            elseif is_byte(tok)
+            if is_byte(tok)
                 push!(bytes, tok)
             else
                 (left, right) = pairs[tok+1]
@@ -144,19 +157,19 @@ module Tokenizer
         format.
     """
     function bpe_train(tokens::Vector{Token_t}, max_it, pairs_file)
-        freqs::Dict{TokenPair, Int64} = Dict()
         tokens_in = tokens
         tokens_out = Token_t[]
         pairs =  init_pairs(pairs_file) 
 
         n = 0
         while n < max_it 
+            freqs = Dict{TokenPair, Int64}()
             for i in 1:(length(tokens_in) - 1)
                 pair::TokenPair = (tokens_in[i], tokens_in[i+1])
                 freqs[pair] = get(freqs, pair, 0) + 1
             end
 
-            max_pair = (0,0)
+            max_pair = nothing
             max_freq = 0
             for (pair, freq) in freqs
                 if freq > max_freq
@@ -171,19 +184,13 @@ module Tokenizer
             append!(pairs, [max_pair])
 
             i = 1
-            while i < length(tokens_in)
-                if i + 1 == length(tokens_in)
-                    append!(tokens_out, [tokens_in[i], tokens_in[i+1]])
-                    i += 1
+            while i <= length(tokens_in)
+                if i < length(tokens_in) && (tokens_in[i], tokens_in[i+1]) == max_pair
+                    push!(tokens_out, length(pairs) - 1)
+                    i += 2
                 else
-                    pair = (tokens_in[i], tokens_in[i+1])
-                    if (pair == max_pair)
-                        append!(tokens_out, length(pairs) - 1)
-                        i += 2
-                    else
-                        append!(tokens_out, tokens_in[i])
-                        i += 1
-                    end
+                    push!(tokens_out, tokens_in[i])
+                    i += 1
                 end
             end
 
