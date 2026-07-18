@@ -3,18 +3,73 @@
 """
 module Tokenizer
     export load_file, decode, encode, encode_file 
-    using Printf, PrettyPrint
+    using Printf
 
+    # === Types and Constants ===
     const Token_t = UInt32::DataType
     const TokenPair = Tuple{Token_t, Token_t}
     
-    # <|bos|> = 256, indicates the beginning of a sentence/sequence
-    # <|eos|> = 257, indicates the end of sentence/sequence
+    # <|bos|> = 256, <|eos|> = 257
     const SPECIAL_TOKENS = ["<|bos|>", "<|eos|>"]
     is_byte(token) = token < 256
     is_special(token) = token in [256, 257]
 
-    # visualize a sequence of tokens
+    struct BPE
+        pairs::Vector{TokenPair}
+        merge_seq::Dict{TokenPair, Int64}
+    end
+
+    # === Constructors and File IO
+    function BPE(filename::String)
+        pairs = TokenPair[] 
+        merge_seq = Dict{TokenPair, Int64}()
+        if !isfile(filename) || filesize(filename) == 0
+            append!(pairs, [(i, 0) for i in 0:257])
+        else
+            open(filename, "r") do io
+                n_pairs = read(io, Int64)
+                n_merge_seq = read(io, Int64)
+
+                temp = Vector{TokenPair}(undef, n_pairs)
+                read!(io, temp)
+                append!(pairs, temp)
+
+                for _ in 1:n_merge_seq
+                    k1 = read(io, Token_t)
+                    k2 = read(io, Token_t)
+                    v = read(io, Int64)
+                    merge_seq[(k1, k2)] = v
+                end
+            end
+        end
+        return BPE(pairs, merge_seq)
+    end
+
+    function write_bpe_file(filename::String, bpe::BPE)
+        n_pairs = length(bpe.pairs)
+        n_merge_seq = length(bpe.merge_seq)
+        open(filename, "w") do io
+            write(io, n_pairs)
+            write(io, n_merge_seq)
+            
+            write(io, bpe.pairs)
+            for(k, v) in bpe.merge_seq
+                write(io, k[1])
+                write(io, k[2])
+                write(io, v)
+            end
+        end
+    end
+
+    function load_tokens(filename::String)
+        n = div(filesize(filename), sizeof(Token_t))
+        temp = Vector{Token_t}(undef, n)
+        read!(filename, temp)
+        return temp
+    end
+ 
+
+    # === Token Utility === 
     function render_tokens(tokens::Vector{Token_t})
         for token in tokens
             if is_byte(token)
@@ -52,66 +107,12 @@ module Tokenizer
         return new_tokens
     end
 
-    function load_tokens(filename::String)
-        n = div(filesize(filename), sizeof(Token_t))
-        temp = Vector{Token_t}(undef, n)
-        read!(filename, temp)
-        return temp
-    end
 
-    function init_pairs(filename::String)
-        pairs = TokenPair[]
-        if !isfile(filename) || filesize(filename) == 0
-            append!(pairs, [(i, 0) for i in 0:257])
-        else
-            n = div(filesize(filename), sizeof(TokenPair))
-            temp = Vector{TokenPair}(undef, n)
-            read!(filename, temp)
-            append!(pairs, temp)
-        end
-        return pairs
-    end
+    # === Encode, Decode and Training Algorithms and Functions ===
+    function encode(text::String, bpe::BPE)
+        pairs = bpe.pairs
+        merge_seq = bpe.merge_seq
 
-    function init_merge_seq(filename::String)
-        if !isfile(filename) || filesize(filename) == 0
-            return Dict{TokenPair, Int64}()
-        else
-            d = Dict{TokenPair, Int64}()
-            
-            n = div(filesize(filename), sizeof(Token_t) + sizeof(Token_t) + sizeof(Int64))
-            sizehint!(d, n)
-
-            open(filename, "r") do io
-                for _ in 1:n
-                    k1 = read(io, Token_t)
-                    k2 = read(io, Token_t)
-                    v = read(io, Int64)
-                    d[(k1, k2)] = v
-                end
-            end
-
-            return d
-        end
-    end
-
-    """ 
-        Train BPE using file "filename".
-        Encoded byte pairs are stored in binary format in "pairs_file" 
-        Max_it specifies the maximum amount of pairs to encode.
-    """
-    function load_file(filename::String; max_it::Int64 = 10000, pairs_file = "pairs.bin", merge_file = "merge.bin")
-        tokens = Token_t[] 
-        for line in eachline(filename)
-            if isempty(strip(line))
-                continue 
-            end
-            bytes = preprocess_tokens(Int.(codeunits(line)))
-            append!(tokens, bytes)
-        end
-        bpe_train(tokens, max_it, pairs_file, merge_file)
-    end
-
-    function encode(text::String, pairs::Vector{TokenPair}, merge_seq::Dict{TokenPair, Int64})
         tokens = preprocess_tokens(Int.(codeunits(text)))
         
         while length(tokens) >= 2
@@ -148,16 +149,14 @@ module Tokenizer
         return Token_t.(tokens)
     end
 
-    function encode(text::String, pairs_file::String, merge_file::String)
-        pairs = init_pairs(pairs_file) 
-        merge_seq = init_merge_seq(merge_file)
-        return encode(text, pairs, merge_seq)
+    function encode(text::String, bpe_file::String)
+        bpe = BPE(bpe_file)
+        return encode(text, bpe)
     end
 
-    function encode_file(input_file::String, output_file::String, pairs_file::String, merge_file::String)
-        pairs = init_pairs(pairs_file)
-        merge_seq = init_merge_seq(merge_file)
-    
+    function encode_file(input_file::String, output_file::String, bpe_file::String)
+        bpe = BPE(bpe_file)
+
         io = open(output_file, "w") 
         write(io, "")
         close(io)
@@ -166,7 +165,7 @@ module Tokenizer
                 if isempty(strip(line))
                     continue
                 end
-                write(io, encode(line, pairs, merge_seq))  
+                write(io, encode(line, bpe))  
             end
         end
     end
@@ -196,23 +195,30 @@ module Tokenizer
         return String(take!(io)) 
     end
 
-    function decode(tokens::Vector{Token_t}, pairs_file::String)
-        pairs = init_pairs(pairs_file)
-        return decode(tokens, pairs)
+    function decode(tokens::Vector{Token_t}, bpe_file::String)
+        bpe = BPE(bpe_file)
+        return decode(tokens, bpe.pairs)
     end
 
-    """
-        Performs BPE on a sequence of tokens. 
-        max_t specifies the maximum amount of pairs to encode, the algorithm may
-        stop before max_it is reached if all pairs in the sequence only occur once.
-        After the algorithm is complete it stores the encoded pairs in pairs_file in binary
-        format.
-    """
-    function bpe_train(tokens::Vector{Token_t}, max_it, pairs_file, merge_file)
+    function load_file(filename::String; max_it::Int64 = 10000, bpe_file="bpe.bin")
+        tokens = Token_t[] 
+        for line in eachline(filename)
+            if isempty(strip(line))
+                continue 
+            end
+            bytes = preprocess_tokens(Int.(codeunits(line)))
+            append!(tokens, bytes)
+        end
+        bpe_train(tokens, max_it, bpe_file)
+    end
+
+    function bpe_train(tokens::Vector{Token_t}, max_it, bpe_file)
         tokens_in = tokens
         tokens_out = Token_t[]
-        pairs =  init_pairs(pairs_file) 
-        merge_seq = init_merge_seq(merge_file)
+        
+        bpe = BPE(bpe_file)
+        pairs = bpe.pairs
+        merge_seq = bpe.merge_seq
 
         n = 0
         while n < max_it 
@@ -253,18 +259,6 @@ module Tokenizer
             n += 1
         end
 
-        # save the pairs
-        open(pairs_file, "w") do io
-            write(io, pairs)
-        end
-
-        # save the merge seq
-        open(merge_file, "w") do io
-            for (k, v) in merge_seq 
-                write(io, k[1])
-                write(io, k[2])
-                write(io, v)
-            end
-        end
+        write_bpe_file(bpe_file, BPE(pairs, merge_seq))
     end
 end
