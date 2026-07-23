@@ -1,4 +1,5 @@
-using Tokenizer
+module bpe 
+include("tokenizer.jl")
 
 errln(err::String) = printstyled(err; color = :red, bold = true)
 warningln(warning::String) = printstyled(warning; color = :orange, bold = true)
@@ -128,7 +129,7 @@ function (@main)(argv::Vector{String})
                 errln("Invalid input file path.")
                 return 1
             else
-                Tokenizer.load_file(input_file, n_iter, model_file)
+                load_file(input_file, n_iter, model_file)
             end
         elseif subcommand == "encode"
             if input_file == "" || !is_valid_path(input_file)
@@ -138,7 +139,7 @@ function (@main)(argv::Vector{String})
                 errln("Invalid output file path.")
                 return 1
             else
-                Tokenizer.encode_file(input_file, output_file, model_file)
+                encode_file(input_file, output_file, model_file)
             end
         elseif subcommand == "decode"
             if input_file == "" || !is_valid_path(input_file)
@@ -148,7 +149,7 @@ function (@main)(argv::Vector{String})
                 errln("Invalid output")
                 return 1
             else
-                Tokenizer.decode_file(input_file, output_file, model_file)
+                decode_file(input_file, output_file, model_file)
             end
         else
             errln("Invalid Subcommand")
@@ -161,4 +162,6 @@ function (@main)(argv::Vector{String})
     end
 
     return 0
+end
+
 end
