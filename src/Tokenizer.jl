@@ -1,8 +1,5 @@
-"""
-    BPE tokenizer
-"""
 module Tokenizer
-    export load_file, decode, encode, encode_file 
+    export load_file, decode, decode_file, encode, encode_file 
     using Printf
 
     # === Types and Constants ===
@@ -200,7 +197,12 @@ module Tokenizer
         return decode(tokens, bpe.pairs)
     end
 
-    function load_file(filename::String; max_it::Int64 = 10000, bpe_file="bpe.bin")
+    function decode_file(input_file::String, output_file::String,bpe_file::String) 
+        decoded_text = decode(load_tokens(input_file), bpe_file)
+        write(output_file, decoded_text)
+    end
+    
+    function load_file(filename::String, max_it::Int64, bpe_file::String)
         tokens = Token_t[] 
         for line in eachline(filename)
             if isempty(strip(line))
@@ -261,4 +263,6 @@ module Tokenizer
 
         write_bpe_file(bpe_file, BPE(pairs, merge_seq))
     end
+
+    include("main.jl")
 end
